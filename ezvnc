@@ -1,0 +1,13 @@
+#!/bin/bash
+
+main() {
+	FUNCTIONDIR=$(dirname ${0})/ezvnc.d
+	if [ ! -d ${FUNCTIONDIR} ]; then
+		echo "Cannot find function definitions and preferences for ${0}.  Exiting."
+		exit 1
+	fi
+	for FUNC in ${FUNCTIONDIR}/*.sh; do
+		source ${FUNC}
+	done
+}
+main "${@}"
