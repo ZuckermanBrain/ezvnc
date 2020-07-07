@@ -1,0 +1,40 @@
+#!/bin/bash
+# guac-stop.sh
+# jsp2205, 2020
+# Columbia University, Zuckerman Research Computing
+#
+# This is a wrapper to used to kill active VNC sessions.
+#
+# See here for more details: https://guacamole.apache.org/doc/gug/adhoc-connections.html#using-quickconnect
+if [ $# -ne 2 ]; then
+	exit
+fi
+# Params
+HOST=${1}
+DISPLAYNUM=${2}
+
+if [ ${HOST} != $(hostname -f) ]; then
+	echo "$(basename ${0}) must be run on the server that the VNC session was started on."
+	echo "Current host: $(hostname -f)"
+	echo "Specified host: ${HOST}"
+	echo "Quitting now."
+	exit 1
+fi
+
+GUACVNCDIR=${HOME}/.guacvnc
+PIDFILE="${GUACVNCDIR}/${HOST}:${DISPLAYNUM}.pid"
+GUACVNCPASSWDFILE="${GUACVNCDIR}/${HOST}:${DISPLAYNUM}-passwd"
+GUACVNCPASSWDCLEAR="${GUACVNCDIR}/.${HOST}:${DISPLAYNUM}-passwd-clear"
+
+if [ ! -f ${PIDFILE} ]; then
+	echo "Warning: The specified VNC session (${HOST}:${DISPLAYNUM}) does not exist."
+	echo "Quitting now."
+	exit 1
+else
+	kill $(cat ${PIDFILE})
+	rm ${PIDFILE}
+	rm ${GUACVNCPASSWDFILE}
+	rm ${GUACVNCPASSWDCLEAR}
+	xauth -f ${GUACVNCDIR}/.Xauthority remove ${HOST}:${DISPLAYNUM}
+	xauth -f ${GUACVNCDIR}/.Xauthority remove ${HOST}/unix:${DISPLAYNUM}
+fi
