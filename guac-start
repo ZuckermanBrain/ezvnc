@@ -33,13 +33,31 @@ env -i /bin/sh -c "export PATH=$PATH;
 		/usr/bin/xfce4-session"
 '
 
+if [ -z ${HOST} ]; then
+	# Find a hostname to bind to.
+	# We just use the first one that can be found from a reverse lookup.
+	declare HOSTS
+	for IP in $(hostname -I); do
+		HOST=$(dig -x ${IP} +short | sed -e 's/\.$//' | awk '{ print $1 }')
+		if [ -z ${HOST} ]; then
+			continue
+		fi
+		HOSTS+=(${HOST})
+	done
+	if [ -z ${HOSTS} ]; then
+		echo "Could find no hostnames for this machine. Exiting."
+		exit 1
+	else
+		HOST=${HOSTS[0]}
+	fi
+fi
+
 # Find display number.
 # Choose a random open display between 0 and 99 by checking ports from 5900-5999.
 # Start by assuming that the port is closed unless proven otherwise by lsof.
 # Essentially, busy wait until a port within the range is free.
 #TODO Add a timeout for circumstance where all displays are taken so it doesn't loop indefinitely /
-# until someone kills their VNC session.:w
-HOST=$(hostname -f)
+# until someone kills their VNC session.
 PORT_FREE=0
 while [ ${PORT_FREE} -eq 0 ]; do
 	DISPLAYNUM=$(shuf -i00-99 -n1)
@@ -116,7 +134,7 @@ fi
 
 # Run the command and record the process ID.
 PIDFILE="${GUACVNCDIR}/${HOST}:${DISPLAYNUM}.pid"
-CMD="Xtightvnc :${DISPLAYNUM} 
+CMD="Xvnc :${DISPLAYNUM} 
 	-desktop ${DESKTOPNAME} 
 	-auth ${GUACVNCDIR}/.Xauthority 
 	-geometry ${GEOMETRY} 
@@ -140,7 +158,7 @@ fi
 
 # If the unix domain socket exists then use that (DISPLAY=:n) otherwise use
 # TCP (DISPLAY=host:n)
-if [ -f "/tmp/.X11-unix/X${DISPLAYNUM}" ]; then
+if [ -e "/tmp/.X11-unix/X${DISPLAYNUM}" ]; then
     export DISPLAY=":${DISPLAYNUM}"
 else 
     export DISPLAY="${HOST}:${DISPLAYNUM}"

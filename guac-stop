@@ -13,9 +13,20 @@ fi
 HOST=${1}
 DISPLAYNUM=${2}
 
-if [ ${HOST} != $(hostname -f) ]; then
+HOSTFLAG=0
+declare HOSTS
+for IP in $(hostname -I); do
+	TMPHOST=$(dig -x ${IP} +short | sed -e 's/\.$//' | awk '{ print $1 }')
+	if [ ${HOST} = ${TMPHOST} ]; then
+		HOSTFLAG=1
+		break
+	fi
+	HOSTS+=(${TMPHOST})
+done
+
+if [ ${HOSTFLAG} -eq 0 ]; then
 	echo "$(basename ${0}) must be run on the server that the VNC session was started on."
-	echo "Current host: $(hostname -f)"
+	echo "Current host(s): ${HOSTS[@]}"
 	echo "Specified host: ${HOST}"
 	echo "Quitting now."
 	exit 1
