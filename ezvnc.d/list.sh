@@ -9,6 +9,10 @@
 
 ezvnc-list() {
 	EZVNCDIR=${HOME}/.ezvnc
+
+	# We use nullglob her temporarily to fetch all the active processes that we know of.
+	# If we don't use nullglob, the string with the wildcard is interpreted as a string literal
+	# which messes up the for loop below.
 	shopt -s nullglob
 	PIDFILES=(${EZVNCDIR}/*.pid)
 	shopt -u nullglob
@@ -17,8 +21,10 @@ ezvnc-list() {
 	declare -A EZVNCURIS
 	declare -A EZVNCDISPLAYNUMS
 	declare -A EZVNCSESSIONHOSTIDX
+
 	# Get the longest URI length for formatting / printf
 	LONGESTURILEN=0
+
 	for PIDFILE in ${PIDFILES[@]};
 	do
 		HOST=$(basename -s .pid ${PIDFILE} | cut -d: -f1)

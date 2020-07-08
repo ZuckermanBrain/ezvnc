@@ -12,6 +12,66 @@
 #
 # See here for more details: https://guacamole.apache.org/doc/gug/adhoc-connections.html#using-quickconnect
 
+
+ezvnc-getdefaultxstartup() {
+	if [ -e /usr/bin/xfce4-session ]; then
+		export DEFAULTXSTARTUP='#!/bin/sh
+env -i /bin/sh -c "export PATH=$PATH;
+export XAUTHORITY=$XAUTHORITY;
+export DISPLAY=$DISPLAY;
+export HOME=$HOME;
+export LOGNAME=$LOGNAME;
+export USER=$USER;
+/usr/bin/xfce4-session"
+'
+	elif [ -e /usr/bin/gnome-session -o -e /usr/bin/startkde ]; then
+		if [ $(lsb_release -i 2> /dev/null | cut -d: -f2) = 'Debian' ] || [ $(lsb_release -i 2> /dev/null | cut -d: -f2) = 'Ubuntu' ]; then
+		DEFAULTXSTARTUP='#!/bin/sh
+DISPLAYNUM=$(echo $DISPLAY | cut -d: -f2)
+
+xrdb $HOME/.Xresources
+xsetroot -solid grey
+#x-terminal-emulator -geometry 80x24+10+10 -ls -title $VNCDESKTOP Desktop &
+#x-window-manager &
+# Fix to make GNOME work
+export XKL_XMODMAP_DISABLE=1
+/etc/X11/Xsession
+if [ -e /usr/bin/gnome-session ]; then
+	exec gnome-session
+elif [ -e /usr/bin/startkde ]; then
+	exec startkde	
+fi
+if [ -e /usr/bin/gnome-session -o -e /usr/bin/startkde ]; then
+	ezvnc stop ${HOST} ${DISPLAYNUM}
+fi
+'
+		elif [ -e /etc/redhat_release ]; then
+			DEFAULTXSTARTUP='#!/bin/sh
+DISPLAYNUM=$(echo $DISPLAY | cut -d: -f2)
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+/etc/X11/xinit/xinitrc
+# Assume either Gnome or KDE will be started by default when installed
+# We want to kill the session automatically in this case when user logs out. In case you modify
+# /etc/X11/xinit/Xclients or ~/.Xclients yourself to achieve a different result, then you should
+# be responsible to modify below code to avoid that your session will be automatically killed
+if [ -e /usr/bin/gnome-session -o -e /usr/bin/startkde ]; then
+	guac-stop ${HOST} ${DISPLAYNUM}
+fi
+'
+		fi
+
+	fi
+}
+
+ezvnc-getvncserver() {
+	if [[ $(Xvnc -version 2>&1) == *TightVNC* ]]; then
+		export VNCVERSION="TightVNC"
+	elif [[ $(Xvnc -version 2>&1) == *TigerVNC* ]]; then
+		export VNCVERSION="TigerVNC"
+	fi
+}
+
 ezvnc-start() {
 	# Constants
 	EZVNCDIR=${HOME}/.ezvnc
@@ -23,16 +83,14 @@ ezvnc-start() {
 	# Maybe use some conditionals here to check if theses variables are already set, and then source some other config file beforehand (~/.ezvnc.rc)?
 	GEOMETRY="1024x768"
 	DEPTH=24
-	DESKTOPNAME="X"
-	DEFAULTXSTARTUP='#!/bin/sh
-	env -i /bin/sh -c "export PATH=$PATH;
-			export XAUTHORITY=$XAUTHORITY;
-			export DISPLAY=$DISPLAY;
-			export HOME=$HOME;
-			export LOGNAME=$LOGNAME;
-			export USER=$USER;
-			/usr/bin/xfce4-session"
-	'
+	if [ -z ${1} ]; then
+		DESKTOPNAME="Nameless"
+	else
+		DESKTOPNAME=${1}
+	fi
+
+	# This will be used later to determine the Xvnc command used.
+	ezvnc-getvncserver
 
 	if [ -z ${HOST} ]; then
 		# Find a hostname to bind to.
@@ -54,6 +112,8 @@ ezvnc-start() {
 			IP=${IPS[0]}
 		fi
 	fi
+	# For use in xstartup.
+	export HOST
 
 	# Find display number.
 	# Choose a random open display between 0 and 99 by checking ports from 5900-5999.
@@ -117,39 +177,56 @@ ezvnc-start() {
 		fi
 	fi
 
-	if [ -z ${COLORPATH} ]; then
-		if [ ${X11FOUND} -ne "1" ]; then
-			COLORPATHFOUND=0
-			for COLORPATH in "/etc/X11/rgb.txt" "/usr/share/X11/rgb.txt" "/usr/X11R6/lib/X11/rgb.txt"; do
-				if [ -f ${COLORPATH} ]; then
-					COLORPATHFOUND=1
-					break
-				fi
-			done
-		else
-			COLORPATH=$(egrep "^[[:space:]]*RgbPath[[:space:]]*.*[[:space:]]*$" ${X11CONFIGPATH} | awk '{print $2}' | sed 's/[\s"]//g')
+	if [ ${VNCVERSION} == "TightVNC" ]; then
+		if [ -z ${COLORPATH} ]; then
+			if [ ${X11FOUND} -ne "1" ]; then
+				COLORPATHFOUND=0
+				for COLORPATH in "/etc/X11/rgb.txt" "/usr/share/X11/rgb.txt" "/usr/X11R6/lib/X11/rgb.txt"; do
+					if [ -f ${COLORPATH} ]; then
+						COLORPATHFOUND=1
+						break
+					fi
+				done
+			else
+				COLORPATH=$(egrep "^[[:space:]]*RgbPath[[:space:]]*.*[[:space:]]*$" ${X11CONFIGPATH} | awk '{print $2}' | sed 's/[\s"]//g')
+			fi
 		fi
-	fi
 
-	if [ ${COLORPATHFOUND} -ne "1" ]; then
-		echo "Error- color path not found"
-		exit 1
+		if [ ${COLORPATHFOUND} -ne "1" ]; then
+			echo "Error- color path not found"
+			exit 1
+		fi
 	fi
 
 	# Run the command and record the process ID.
 	PIDFILE="${EZVNCDIR}/${HOST}:${DISPLAYNUM}.pid"
-	CMD="Xvnc :${DISPLAYNUM} 
-		-desktop ${DESKTOPNAME} 
-		-auth ${EZVNCDIR}/.Xauthority 
-		-geometry ${GEOMETRY} 
-		-depth ${DEPTH} 
-		-rfbwait 120000
-		-rfbauth ${EZVNCPASSWDFILE}
-		-rfbport ${EZVNCPORT} 
-		-fp ${FONTPATH}
-		-co ${COLORPATH}
-		-interface ${IP}
-	"
+	if [ ${VNCVERSION} == "TightVNC" ]; then
+		CMD="Xvnc :${DISPLAYNUM} 
+			-desktop ${DESKTOPNAME} 
+			-auth ${EZVNCDIR}/.Xauthority 
+			-geometry ${GEOMETRY} 
+			-depth ${DEPTH} 
+			-rfbwait 120000
+			-rfbauth ${EZVNCPASSWDFILE}
+			-rfbport ${EZVNCPORT} 
+			-fp ${FONTPATH}
+			-co ${COLORPATH}
+			-interface ${IP}
+		"
+	else
+		CMD="Xvnc :${DISPLAYNUM} 
+			-desktop ${DESKTOPNAME} 
+			-auth ${EZVNCDIR}/.Xauthority 
+			-geometry ${GEOMETRY} 
+			-depth ${DEPTH} 
+			-rfbwait 120000
+			-rfbauth ${EZVNCPASSWDFILE}
+			-rfbport ${EZVNCPORT} 
+			-fp ${FONTPATH}
+			-pn
+			-interface ${IP}
+		"
+	fi
 	${CMD} >> ${EZVNCDESKTOPLOG} 2>&1 & echo $! > ${PIDFILE}
 	sleep 3
 
@@ -157,6 +234,9 @@ ezvnc-start() {
 	XSTARTUP=${EZVNCDIR}/xstartup
 	if [ ! -f ${XSTARTUP} ]; then
 		echo ${XSTARTUP} does not exist.  Creating now...
+		if [ -z ${DEFAULTXSTARTUP} ]; then
+			ezvnc-getdefaultxstartup
+		fi
 		echo "${DEFAULTXSTARTUP}" > ${XSTARTUP}
 		chmod 0755 ${XSTARTUP}
 	fi
