@@ -38,7 +38,8 @@ ezvnc-start() {
 		# Find a hostname to bind to.
 		# We just use the first one that can be found from a reverse lookup.
 		declare HOSTS
-		for IP in $(hostname -I); do
+		IPS=($(hostname -I))
+		for IP in ${IPS[@]}; do
 			HOST=$(dig -x ${IP} +short | sed -e 's/\.$//' | awk '{ print $1 }')
 			if [ -z ${HOST} ]; then
 				continue
@@ -50,6 +51,7 @@ ezvnc-start() {
 			exit 1
 		else
 			HOST=${HOSTS[0]}
+			IP=${IPS[0]}
 		fi
 	fi
 
@@ -71,8 +73,9 @@ ezvnc-start() {
 
 	# Make an X server cookie using /dev/urandom.
 	COOKIE=$(head /dev/urandom | tr -dc a-f0-9 | head -c 12)
-	xauth -f ${EZVNCDIR}/.Xauthority add ${HOST}:${DISPLAYNUM} . ${COOKIE}
-	xauth -f ${EZVNCDIR}/.Xauthority add ${HOST}/unix:${DISPLAYNUM} . ${COOKIE}
+	# Use $(hostname) instead of HOST b/c that's how Xvnc names displays.
+	xauth -f ${EZVNCDIR}/.Xauthority add $(hostname):${DISPLAYNUM} . ${COOKIE}
+	xauth -f ${EZVNCDIR}/.Xauthority add $(hostname)/unix:${DISPLAYNUM} . ${COOKIE}
 	export XAUTHORITY="${EZVNCDIR}/.Xauthority"
 
 	# Construct log file path
@@ -145,6 +148,7 @@ ezvnc-start() {
 		-rfbport ${EZVNCPORT} 
 		-fp ${FONTPATH}
 		-co ${COLORPATH}
+		-interface ${IP}
 	"
 	${CMD} >> ${EZVNCDESKTOPLOG} 2>&1 & echo $! > ${PIDFILE}
 	sleep 3
