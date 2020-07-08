@@ -73,9 +73,9 @@ ezvnc-start() {
 
 	# Make an X server cookie using /dev/urandom.
 	COOKIE=$(head /dev/urandom | tr -dc a-f0-9 | head -c 12)
-	# Use $(hostname) instead of HOST b/c that's how Xvnc names displays.
-	xauth -f ${EZVNCDIR}/.Xauthority add $(hostname):${DISPLAYNUM} . ${COOKIE}
-	xauth -f ${EZVNCDIR}/.Xauthority add $(hostname)/unix:${DISPLAYNUM} . ${COOKIE}
+	# Use $(uname -n) instead of HOST b/c that's how Xvnc names displays.
+	xauth -f ${EZVNCDIR}/.Xauthority add $(uname -n):${DISPLAYNUM} . ${COOKIE}
+	xauth -f ${EZVNCDIR}/.Xauthority add $(uname -n)/unix:${DISPLAYNUM} . ${COOKIE}
 	export XAUTHORITY="${EZVNCDIR}/.Xauthority"
 
 	# Construct log file path
