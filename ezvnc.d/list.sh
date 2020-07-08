@@ -8,9 +8,10 @@
 # See here for more details: https://guacamole.apache.org/doc/gug/adhoc-connections.html#using-quickconnect
 
 ezvnc-list() {
-	shopt -s nullglob
-
 	EZVNCDIR=${HOME}/.ezvnc
+	shopt -s nullglob
+	PIDFILES=(${EZVNCDIR}/*.pid)
+	shopt -u nullglob
 
 	# Create a hash to group VNC sessios by host.
 	declare -A EZVNCURIS
@@ -18,7 +19,7 @@ ezvnc-list() {
 	declare -A EZVNCSESSIONHOSTIDX
 	# Get the longest URI length for formatting / printf
 	LONGESTURILEN=0
-	for PIDFILE in ${EZVNCDIR}/*.pid;
+	for PIDFILE in ${PIDFILES[@]};
 	do
 		HOST=$(basename -s .pid ${PIDFILE} | cut -d: -f1)
 		# Make sure index is initialized and set to 1 (we're using 1-indexing for end-user readability)
@@ -29,7 +30,7 @@ ezvnc-list() {
 		EZVNCPASSWD=$(cat ${EZVNCPASSWDCLEAR})
 		IDX=${EZVNCSESSIONHOSTIDX[${HOST}]}
 		EZVNCURI="vnc://${HOST}:${EZVNCPORT}?password=${EZVNCPASSWD}"
-		if [ $(echo ${EZVNCURI} | wc -c) -gt ${LONGESTURILEN} ]; then
+		if [ $(echo "${EZVNCURI}" | wc -c) -gt ${LONGESTURILEN} ]; then
 			LONGESTURILEN=$(echo ${EZVNCURI} | wc -c)
 		fi
 		EZVNCURIS[${HOST}_${IDX}]=${EZVNCURI}
@@ -47,6 +48,7 @@ ezvnc-list() {
 		do
 			EZURI=${EZVNCURIS["${HOST}_${IDX}"]}
 			EZDISPLAYNUM=${EZVNCDISPLAYNUMS["${HOST}_${IDX}"]}
+			
 			printf "%-3s %-${LONGESTURILEN}s %-${HOSTLEN}s %-2s\n" "${IDX}." ${EZURI} ${HOST} ${EZDISPLAYNUM}
 			IDX=$(( ${IDX} + 1 ))
 		done

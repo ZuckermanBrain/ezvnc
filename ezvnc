@@ -1,5 +1,9 @@
 #!/bin/bash
 
+usage() {
+	echo foo
+}
+
 main() {
 	FUNCTIONDIR=$(dirname ${0})/ezvnc.d
 	if [ ! -d ${FUNCTIONDIR} ]; then
@@ -9,5 +13,39 @@ main() {
 	for FUNC in ${FUNCTIONDIR}/*.sh; do
 		source ${FUNC}
 	done
+	if [ "$#" -lt 1 ]; then
+		usage
+		exit 1
+	else
+		\local CMD="$1"
+		shift
+		case "${CMD}" in
+			start)
+				EZURI=$(ezvnc-start || exit 1)
+				echo "VNC has started."
+				echo "You can now connect to your VNC session using the following URI:"
+				echo ${EZURI}
+
+			;;
+			stop)
+				if [ "$#" -lt 2 ]; then
+					usage
+					exit 1
+				else
+					ezvnc-stop ${1} ${2}
+				fi
+			;;
+			list)
+				ezvnc-list
+			;;
+			help)
+				usage
+			;;
+			*)
+				usage
+			;;
+		esac
+	fi
 }
+	
 main "${@}"
