@@ -172,6 +172,6 @@ ezvnc-start() {
 
 	${XSTARTUP} >> ${EZVNCDESKTOPLOG} 2>&1 &
 
-	EZURI="vnc://$(whoami):${EZVNCPASSWD}@${HOST}:${EZVNCPORT}"
+	EZURI="vnc://${HOST}:${EZVNCPORT}?password=${EZVNCPASSWD}"
 	echo ${EZURI}
 }

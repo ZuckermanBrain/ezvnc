@@ -28,7 +28,7 @@ ezvnc-list() {
 		EZVNCPASSWDCLEAR="${EZVNCDIR}/.${HOST}:${DISPLAYNUM}-passwd-clear"
 		EZVNCPASSWD=$(cat ${EZVNCPASSWDCLEAR})
 		IDX=${EZVNCSESSIONHOSTIDX[${HOST}]}
-		EZVNCURI="vnc://$(whoami):${EZVNCPASSWD}@${HOST}:${EZVNCPORT}"
+		EZVNCURI="vnc://${HOST}:${EZVNCPORT}?password=${EZVNCPASSWD}"
 		if [ $(echo ${EZVNCURI} | wc -c) -gt ${LONGESTURILEN} ]; then
 			LONGESTURILEN=$(echo ${EZVNCURI} | wc -c)
 		fi
