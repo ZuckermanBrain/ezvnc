@@ -69,6 +69,9 @@ ezvnc-getvncserver() {
 		export VNCVERSION="TightVNC"
 	elif [[ $(Xvnc -version 2>&1) == *TigerVNC* ]]; then
 		export VNCVERSION="TigerVNC"
+	else
+		echo "VNC Server version could not be determined.  Exiting now."
+		exit 1
 	fi
 }
 
