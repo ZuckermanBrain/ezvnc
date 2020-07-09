@@ -1,7 +1,26 @@
 #!/bin/bash
 
 usage() {
-	echo foo
+	echo "$(basename ${0}) is an alternative wrapper around Xvnc for starting VNC sessions."
+	echo "It consists of three subcommands, described below.  Optional parameters are enclosed by square brackets."
+	echo
+	echo "Starting a new session:"
+	echo "$(basename ${0}) start [NAME]"
+	echo "The optional NAME parameter allows you to associate a new VNC session with a name for future reference."
+	echo
+	echo "Listing currently running sessions:"
+	echo "$(basename ${0}) list"
+	echo
+	echo "Stopping/quitting a currently running session:"
+	echo "$(basename ${0}) stop [NAME]"
+	echo "$(basename ${0}) stop [HOST] [DISPLAY NUMBER]"
+	echo "The syntax to stop a VNC session has two variants.  One allows you to use an optional session name"
+	echo "to identify the session to quit.  The other takes in the host that the VNC session is running on and a display number."
+	echo "The parameters needed for this command can be found by running '$(basename ${0}) list'."
+	echo
+	echo "Printing this usage dialogue:"
+	echo "$(basename ${0}) help"
+	echo
 }
 
 main() {
@@ -21,18 +40,24 @@ main() {
 		shift
 		case "${CMD}" in
 			start)
-				EZURI=$(ezvnc-start || exit 1)
+				if [ "$#" -eq 1 ]; then
+					EZURI=$(ezvnc-start ${1} || exit 1)
+				else
+					EZURI=$(ezvnc-start || exit 1)
+				fi
 				echo "VNC has started."
 				echo "You can now connect to your VNC session using the following URI:"
 				echo ${EZURI}
 
 			;;
 			stop)
-				if [ "$#" -lt 2 ]; then
+				if [ "$#" -eq 1 ]; then
+					ezvnc-stop ${1} ${2}
+				elif [ "$#" -eq 2 ]; then
+					ezvnc-stop ${1} ${2}
+				else
 					usage
 					exit 1
-				else
-					ezvnc-stop ${1} ${2}
 				fi
 			;;
 			list)
@@ -42,6 +67,8 @@ main() {
 				usage
 			;;
 			*)
+				echo "Unrecognized option: ${CMD}"
+				echo
 				usage
 			;;
 		esac
