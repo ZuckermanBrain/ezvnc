@@ -20,10 +20,12 @@ ezvnc-list() {
 	# Create a hash to group VNC sessios by host.
 	declare -A EZVNCURIS
 	declare -A EZVNCDISPLAYNUMS
+	declare -A EZVNCDISPLAYNAMES
 	declare -A EZVNCSESSIONHOSTIDX
 
-	# Get the longest URI length for formatting / printf
+	# Get the longest URI / display name lengths for formatting / printf
 	LONGESTURILEN=0
+	LONGESTNAMELEN=0
 
 	for PIDFILE in ${PIDFILES[@]};
 	do
@@ -32,8 +34,15 @@ ezvnc-list() {
 		[ -z "${EZVNCSESSIONHOSTIDX[${HOST}]}" ] && EZVNCSESSIONHOSTIDX[${HOST}]=1
 		DISPLAYNUM=$(basename -s .pid ${PIDFILE} | cut -d: -f2)
 		EZVNCPORT="59$(printf '%02d' ${DISPLAYNUM})"
-		EZVNCPASSWDCLEAR="${EZVNCDIR}/.${HOST}:${DISPLAYNUM}-passwd-clear"
-		EZVNCPASSWD=$(cat ${EZVNCPASSWDCLEAR})
+		EZVNCPASSWD=$(cat "${EZVNCDIR}/.${HOST}:${DISPLAYNUM}-passwd-clear")
+		if [ -f "${EZVNCDIR}/${HOST}:${DISPLAYNUM}-name" ]; then
+			EZVNCDISPNAME=$(cat "${EZVNCDIR}/${HOST}:${DISPLAYNUM}-name")
+		else
+			EZVNCDISPNAME="Untitled"
+		fi
+		if [ $(echo "${EZVNCDISPNAME}" | wc -c) -gt ${LONGESTNAMELEN} ]; then
+			LONGESTNAMELEN=$(echo ${EZVNCDISPNAME} | wc -c)
+		fi
 		IDX=${EZVNCSESSIONHOSTIDX[${HOST}]}
 		EZVNCURI="vnc://${HOST}:${EZVNCPORT}?password=${EZVNCPASSWD}"
 		if [ $(echo "${EZVNCURI}" | wc -c) -gt ${LONGESTURILEN} ]; then
@@ -41,6 +50,7 @@ ezvnc-list() {
 		fi
 		EZVNCURIS[${HOST}_${IDX}]=${EZVNCURI}
 		EZVNCDISPLAYNUMS[${HOST}_${IDX}]=${DISPLAYNUM}
+		EZVNCDISPLAYNAMES[${HOST}_${IDX}]=${EZVNCDISPNAME}
 		EZVNCSESSIONHOSTIDX[${HOST}]=$(( ${IDX} + 1 ))
 	done
 
@@ -49,13 +59,13 @@ ezvnc-list() {
 		IDX=1
 		echo -e "Active VNC Connections for ${HOST}:\n"
 		HOSTLEN=$(echo ${HOST} | wc -c)
-		printf "%-3s %-${LONGESTURILEN}s %-${HOSTLEN}s %-2s\n" "" "URI" "Host" "Display Number"
+		printf "%-3s %-${LONGESTNAMELEN}s %-${LONGESTURILEN}s %-${HOSTLEN}s %-2s\n" "" "Name" "URI" "Host" "Display Number"
 		while [ ${IDX} -ne ${EZVNCSESSIONHOSTIDX[${HOST}]} ];
 		do
+			EZVNCDISPNAME=${EZVNCDISPLAYNAMES["${HOST}_${IDX}"]}
 			EZURI=${EZVNCURIS["${HOST}_${IDX}"]}
 			EZDISPLAYNUM=${EZVNCDISPLAYNUMS["${HOST}_${IDX}"]}
-			
-			printf "%-3s %-${LONGESTURILEN}s %-${HOSTLEN}s %-2s\n" "${IDX}." ${EZURI} ${HOST} ${EZDISPLAYNUM}
+			printf "%-3s %-${LONGESTNAMELEN}s %-${LONGESTURILEN}s %-${HOSTLEN}s %-2s\n" "${IDX}." "${EZVNCDISPNAME}" "${EZURI}" "${HOST}" "${EZDISPLAYNUM}"
 			IDX=$(( ${IDX} + 1 ))
 		done
 		echo

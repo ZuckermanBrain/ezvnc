@@ -84,10 +84,21 @@ ezvnc-start() {
 	GEOMETRY="1024x768"
 	DEPTH=24
 	if [ -z ${1} ]; then
-		DESKTOPNAME="Nameless"
+		DESKTOPNAME="Untitled"
 	else
-		DESKTOPNAME=${1}
+		# Remove whitespace and save in variable.
+		DESKTOPNAME=$(echo ${1} | sed -e 's/ //')
 	fi
+
+	# Check if DESKTOPNAME is already used and switch to Untitled if it is.
+	# This check also runs in the main function but is included here in case that gets
+	# circumvented.
+	DESKTOPNAMES=($(cat ${EZVNCDIR}/*-name 2> /dev/null))
+	for CURSESSNAME in ${DESKTOPNAMES[@]}; do
+		if [ ${CURSESSNAME} = ${DESKTOPNAME} ]; then
+			DESKTOPNAME="Untitled"
+		fi
+	done
 
 	# This will be used later to determine the Xvnc command used.
 	ezvnc-getvncserver
@@ -145,12 +156,13 @@ ezvnc-start() {
 	# That's echoed to stdout when the server is first started up.
 	# Store the password in a plaintext file that can only be read by the user for queries
 	# about active sessions.
+	# TODO- Maybe encrypt these with GPG.
 	EZVNCPASSWD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
 	EZVNCPASSWDFILE="${EZVNCDIR}/${HOST}:${DISPLAYNUM}-passwd"
 	EZVNCPASSWDCLEAR="${EZVNCDIR}/.${HOST}:${DISPLAYNUM}-passwd-clear"
 	echo ${EZVNCPASSWD} | vncpasswd -f > ${EZVNCPASSWDFILE}
 	touch ${EZVNCPASSWDCLEAR}
-	chmod 0700 ${EZVNCPASSWDCLEAR}
+	chmod 0600 ${EZVNCPASSWDCLEAR}
 	echo ${EZVNCPASSWD} > ${EZVNCPASSWDCLEAR}
 
 	# Get font path and config path
@@ -198,7 +210,11 @@ ezvnc-start() {
 		fi
 	fi
 
-	# Run the command and record the process ID.
+	# Run the command and record the process ID.  Record the name if this session was named.
+	if [ ${DESKTOPNAME} != "Untitled" ]; then
+		EZVNCDISPLAYNAMEFILE="${EZVNCDIR}/${HOST}:${DISPLAYNUM}-name"
+		echo ${DESKTOPNAME} > ${EZVNCDISPLAYNAMEFILE}
+	fi
 	PIDFILE="${EZVNCDIR}/${HOST}:${DISPLAYNUM}.pid"
 	if [ ${VNCVERSION} == "TightVNC" ]; then
 		CMD="Xvnc :${DISPLAYNUM} 
@@ -242,11 +258,11 @@ ezvnc-start() {
 	fi
 
 	# If the unix domain socket exists then use that (DISPLAY=:n) otherwise use
-	# TCP (DISPLAY=host:n)
+	# TCP (DISPLAY=$(uname -n):n)
 	if [ -e "/tmp/.X11-unix/X${DISPLAYNUM}" ]; then
-	    export DISPLAY=":${DISPLAYNUM}"
+		export DISPLAY=":${DISPLAYNUM}"
 	else 
-	    export DISPLAY="${HOST}:${DISPLAYNUM}"
+		export DISPLAY="$(uname -n):${DISPLAYNUM}"
 	fi
 	export VNCDESKTOP=${DESKTOPNAME}
 

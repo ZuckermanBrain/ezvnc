@@ -41,7 +41,23 @@ main() {
 		case "${CMD}" in
 			start)
 				if [ "$#" -eq 1 ]; then
-					EZURI=$(ezvnc-start ${1} || exit 1)
+					# Check if name is already used.
+					EZVNCDIR=${HOME}/.ezvnc
+					DESKTOPNAMES=($(cat ${EZVNCDIR}/*-name 2> /dev/null))
+					NAMEFLAG=0
+					for CURSESSNAME in ${DESKTOPNAMES[@]}; do
+						if [ ${CURSESSNAME} = ${1} ]; then
+							echo "The name '${1}' is already in use."
+							echo "This session will not have a name."
+							NAMEFLAG=1
+							break
+						fi
+					done
+					if [ ${NAMEFLAG} -eq 0 ]; then
+						EZURI=$(ezvnc-start ${1} || exit 1)
+					else
+						EZURI=$(ezvnc-start || exit 1)
+					fi
 				else
 					EZURI=$(ezvnc-start || exit 1)
 				fi
