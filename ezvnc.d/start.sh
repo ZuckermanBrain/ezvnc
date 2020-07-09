@@ -12,7 +12,6 @@
 #
 # See here for more details: https://guacamole.apache.org/doc/gug/adhoc-connections.html#using-quickconnect
 
-
 ezvnc-getdefaultxstartup() {
 	if [ -e /usr/bin/xfce4-session ]; then
 		export DEFAULTXSTARTUP='#!/bin/sh
@@ -75,7 +74,31 @@ ezvnc-getvncserver() {
 	fi
 }
 
+
 ezvnc-start() {
+	# Function to perform cleanup if the function doesn't finish before it exits.
+	cleanup() {
+		if [ -z "${EZURI}" ]; then
+			if [ -n "${PIDFILE}" ] && [ -f ${PIDFILE} ]; then
+				kill $(cat ${PIDFILE}) 2> /dev/null
+				rm ${PIDFILE}
+			fi
+			if [ -n "${EZVNCPASSWDFILE}" ] && [ -f ${EZVNCPASSWDFILE} ]; then
+				rm ${EZVNCPASSWDFILE}
+			fi
+			if [ -n "${EZVNCPASSWDCLEAR}" ] && [ -f "${EZVNCPASSWDCLEAR}" ]; then
+				rm ${EZVNCPASSWDCLEAR}
+			fi
+			if [ -n "${EZVNCDISPLAYNAMEFILE}" ] && [ -f ${EZVNCDISPLAYNAMEFILE} ]; then
+				rm ${EZVNCDISPLAYNAMEFILE}
+			fi
+			if [ -n "${EZVNCDIR}" ] && [ -n "${HOST}" ] && [ -n "${DISPLAYNUM}" ]; then
+				xauth -f ${EZVNCDIR}/.Xauthority remove ${HOST}:${DISPLAYNUM}
+				xauth -f ${EZVNCDIR}/.Xauthority remove ${HOST}/unix:${DISPLAYNUM}
+			fi
+		fi
+	}
+	trap cleanup EXIT
 	# Constants
 	EZVNCDIR=${HOME}/.ezvnc
 	if [ ! -d ${EZVNCDIR} ]; then
@@ -140,6 +163,9 @@ ezvnc-start() {
 		DISPLAYNUM=$(shuf -i00-99 -n1)
 		if ! nc -z ${HOST} 59${DISPLAYNUM} ; then
 			PORT_FREE=1
+		fi
+		if [ -e "/tmp/.X11-unix/X${DISPLAYNUM}" ]; then
+			PORT_FREE=0
 		fi
 		sleep 1
 	done
@@ -252,7 +278,6 @@ ezvnc-start() {
 	# Create the user's xstartup script if necessary.
 	XSTARTUP=${EZVNCDIR}/xstartup
 	if [ ! -f ${XSTARTUP} ]; then
-		echo ${XSTARTUP} does not exist.  Creating now...
 		if [ -z ${DEFAULTXSTARTUP} ]; then
 			ezvnc-getdefaultxstartup
 		fi
@@ -273,4 +298,5 @@ ezvnc-start() {
 
 	EZURI="vnc://${HOST}:${EZVNCPORT}?password=${EZVNCPASSWD}"
 	echo ${EZURI}
+
 }
