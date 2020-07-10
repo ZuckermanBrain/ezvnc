@@ -109,11 +109,10 @@ ezvnc-start() {
 	# Maybe use some conditionals here to check if theses variables are already set, and then source some other config file beforehand (~/.ezvnc.rc)?
 	GEOMETRY="1024x768"
 	DEPTH=24
-	if [ -z ${1} ]; then
+	# Remove non-alphanumeric characters and save in variable.
+	DESKTOPNAME=$(echo ${1} | tr -cd '[:alnum:]')
+	if [ -z ${DESKTOPNAME} ]; then
 		DESKTOPNAME="Untitled"
-	else
-		# Remove non-alphanumeric characters and save in variable.
-		DESKTOPNAME=$(echo ${1} | tr -cd '[:alnum:]')
 	fi
 
 	# Check if DESKTOPNAME is already used and switch to Untitled if it is.
