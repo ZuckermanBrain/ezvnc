@@ -112,8 +112,8 @@ ezvnc-start() {
 	if [ -z ${1} ]; then
 		DESKTOPNAME="Untitled"
 	else
-		# Remove whitespace and save in variable.
-		DESKTOPNAME=$(echo ${1} | sed -e 's/ //')
+		# Remove non-alphanumeric characters and save in variable.
+		DESKTOPNAME=$(echo ${1} | tr -cd '[:alnum:]')
 	fi
 
 	# Check if DESKTOPNAME is already used and switch to Untitled if it is.
