@@ -24,7 +24,7 @@ export USER=$USER;
 /usr/bin/xfce4-session"
 '
 	elif [ -e /usr/bin/gnome-session -o -e /usr/bin/startkde ]; then
-		if [ $(lsb_release -i 2> /dev/null | cut -d: -f2) = 'Debian' ] || [ $(lsb_release -i 2> /dev/null | cut -d: -f2) = 'Ubuntu' ]; then
+		if [ "$(lsb_release -i 2> /dev/null | cut -d: -f2)" = "Debian" ] || [ "$(lsb_release -i 2> /dev/null | cut -d: -f2)" = "Ubuntu" ]; then
 		DEFAULTXSTARTUP='#!/bin/sh
 DISPLAYNUM=$(echo $DISPLAY | cut -d: -f2)
 
@@ -44,7 +44,7 @@ if [ -e /usr/bin/gnome-session -o -e /usr/bin/startkde ]; then
 	ezvnc stop ${HOST} ${DISPLAYNUM}
 fi
 '
-		elif [ -e /etc/redhat_release ]; then
+		elif [ -e /etc/redhat-release ]; then
 			DEFAULTXSTARTUP='#!/bin/sh
 DISPLAYNUM=$(echo $DISPLAY | cut -d: -f2)
 unset SESSION_MANAGER
@@ -55,7 +55,7 @@ unset DBUS_SESSION_BUS_ADDRESS
 # /etc/X11/xinit/Xclients or ~/.Xclients yourself to achieve a different result, then you should
 # be responsible to modify below code to avoid that your session will be automatically killed
 if [ -e /usr/bin/gnome-session -o -e /usr/bin/startkde ]; then
-	guac-stop ${HOST} ${DISPLAYNUM}
+	ezvnc stop ${HOST} ${DISPLAYNUM}
 fi
 '
 		fi
@@ -277,7 +277,7 @@ ezvnc-start() {
 	# Create the user's xstartup script if necessary.
 	XSTARTUP=${EZVNCDIR}/xstartup
 	if [ ! -f ${XSTARTUP} ]; then
-		if [ -z ${DEFAULTXSTARTUP} ]; then
+		if [ -z "${DEFAULTXSTARTUP}" ]; then
 			ezvnc-getdefaultxstartup
 		fi
 		echo "${DEFAULTXSTARTUP}" > ${XSTARTUP}
